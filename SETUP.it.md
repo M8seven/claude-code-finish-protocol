@@ -1,39 +1,39 @@
-# /finish Setup Guide
+# Guida Setup /finish
 
-Everything you need to install the `/finish` protocol on a new machine with Claude Code.
+Tutto il necessario per installare il protocollo `/finish` su una nuova macchina con Claude Code.
 
-## Prerequisites
+## Prerequisiti
 
-- macOS or Linux
-- Claude Code installed
-- `jq` installed (`brew install jq` / `apt install jq`)
-- `tree` installed (`brew install tree` / `apt install tree`)
-- Git configured
+- macOS o Linux
+- Claude Code installato
+- `jq` installato (`brew install jq` / `apt install jq`)
+- `tree` installato (`brew install tree` / `apt install tree`)
+- Git configurato
 
-## Target Structure
+## Struttura target
 
-After installation:
+Dopo l'installazione:
 
 ```
 ~/.claude/
 ├── commands/
-│   └── finish.md              # AI prompt — intelligent phase
+│   └── finish.md              # Prompt AI — fase intelligente
 ├── hooks/
-│   └── session-end-safety.sh  # Safety net — warns on uncommitted work
-└── settings.json              # Must include SessionStart hook
+│   └── session-end-safety.sh  # Rete di sicurezza — avvisa su uncommitted
+└── settings.json              # Deve includere hook SessionStart
 
 <WORKSPACE>/
 ├── .claude/
-│   ├── finish.sh              # Bash script — mechanical phase
-│   └── projects.json          # Project registry
-└── backups/                   # Auto-created — tar.gz + git bundles
+│   ├── finish.sh              # Script bash — fase meccanica
+│   └── projects.json          # Registry progetti
+└── backups/                   # Auto-creato — tar.gz + git bundle
 ```
 
-Replace `<WORKSPACE>` with your projects root (e.g., `~/code`, `~/projects`).
+Sostituisci `<WORKSPACE>` con la root dei tuoi progetti (es. `~/code`, `~/projects`).
 
 ---
 
-## Step 1 — Create directories
+## Passo 1 — Crea le directory
 
 ```bash
 mkdir -p ~/.claude/commands
@@ -44,17 +44,17 @@ mkdir -p <WORKSPACE>/backups
 
 ---
 
-## Step 2 — Create `projects.json`
+## Passo 2 — Crea `projects.json`
 
 **File:** `<WORKSPACE>/.claude/projects.json`
 
-This registers each project with its configuration.
+Registra ogni progetto con la sua configurazione.
 
 ```json
 {
   "<slug>": {
-    "name": "<Display Name>",
-    "path": "~/<path/to/project>",
+    "name": "<Nome Display>",
+    "path": "~/<percorso/al/progetto>",
     "git": true,
     "backup": true,
     "backup_exclude": [".git", "node_modules"],
@@ -66,21 +66,21 @@ This registers each project with its configuration.
 }
 ```
 
-### Fields
+### Campi
 
-| Field | Type | Description |
+| Campo | Tipo | Descrizione |
 |---|---|---|
-| `name` | string | Display name |
-| `path` | string | Absolute path (supports `~`) |
-| `git` | bool | Whether the project uses git |
-| `backup` | bool | Whether to create tar.gz backups |
-| `backup_exclude` | string[] | Patterns to exclude from backup |
-| `docs_dir` | string/null | Directory for STATUS/TODO files. `null` = no docs |
-| `tree_exclude` | string | Pipe-separated patterns for tree |
-| `status_file` | string | Status file name (inside docs_dir) |
-| `todo_file` | string | TODO file name (inside docs_dir) |
+| `name` | string | Nome display |
+| `path` | string | Percorso assoluto (supporta `~`) |
+| `git` | bool | Se il progetto usa git |
+| `backup` | bool | Se creare backup tar.gz |
+| `backup_exclude` | string[] | Pattern da escludere dal backup |
+| `docs_dir` | string/null | Directory per STATUS/TODO. `null` = niente doc |
+| `tree_exclude` | string | Pattern separati da pipe per tree |
+| `status_file` | string | Nome del file status (dentro docs_dir) |
+| `todo_file` | string | Nome del file TODO (dentro docs_dir) |
 
-### Example
+### Esempio
 
 ```json
 {
@@ -98,23 +98,23 @@ This registers each project with its configuration.
 }
 ```
 
-> The system also works WITHOUT projects.json — it auto-detects projects by walking up from cwd looking for `.git`, `CLAUDE.md`, or `package.json`. Without a registry, only backup is performed (no doc updates).
+> Il sistema funziona anche SENZA projects.json — auto-rileva i progetti risalendo da cwd cercando `.git`, `CLAUDE.md` o `package.json`. Senza registry fa solo backup, niente aggiornamento doc.
 
 ---
 
-## Step 3 — Create `finish.sh`
+## Passo 3 — Crea `finish.sh`
 
 **File:** `<WORKSPACE>/.claude/finish.sh`
 
-Edit the first 3 lines to match your setup:
+Modifica le prime 3 righe per il tuo setup:
 
 ```bash
-HUB_DEV="$HOME/<your-workspace>"       # ← your workspace root
+HUB_DEV="$HOME/<tuo-workspace>"       # ← la root del tuo workspace
 PROJECTS_JSON="$HUB_DEV/.claude/projects.json"
 BACKUPS_DIR="$HUB_DEV/backups"
 ```
 
-### Full script
+### Script completo
 
 ```bash
 #!/bin/bash
@@ -124,7 +124,7 @@ HUB_DEV="$HOME/Hub/dev"
 PROJECTS_JSON="$HUB_DEV/.claude/projects.json"
 BACKUPS_DIR="$HUB_DEV/backups"
 
-# --- 1. Detect project from pwd ---
+# --- 1. Rileva progetto da pwd ---
 PWD_REAL="$(pwd -P)"
 
 IN_REGISTRY=false
@@ -160,7 +160,7 @@ if [[ -z "$PROJECT_NAME" ]]; then
   done
 
   if [[ -z "$PROJECT_NAME" ]]; then
-    echo "Error: no project detected." >&2
+    echo "Errore: nessun progetto rilevato." >&2
     exit 1
   fi
 
@@ -180,24 +180,24 @@ if [[ -z "$PROJECT_NAME" ]]; then
   fi
 fi
 
-# --- 2. Confirmation ---
-echo "Project detected: $PROJECT_NAME ($PROJECT_PATH)"
+# --- 2. Conferma ---
+echo "Progetto rilevato: $PROJECT_NAME ($PROJECT_PATH)"
 
 if [[ "$IN_REGISTRY" == false ]]; then
-  read -rp "Not in registry. Backup only? [y/N] " ans
+  read -rp "Non in registry. Solo backup? [y/N] " ans
   case "$ans" in
     [yY]) ONLY_BACKUP=true ;;
-    *) echo "Cancelled."; exit 0 ;;
+    *) echo "Annullato."; exit 0 ;;
   esac
 else
-  read -rp "Confirm? [Y/n] " ans
+  read -rp "Confermi? [Y/n] " ans
   case "$ans" in
-    [nN]) echo "Cancelled."; exit 0 ;;
+    [nN]) echo "Annullato."; exit 0 ;;
   esac
   ONLY_BACKUP=false
 fi
 
-# --- 3. Load project config ---
+# --- 3. Carica config progetto ---
 USE_GIT=false
 USE_BACKUP=true
 BACKUP_EXCLUDES=()
@@ -219,7 +219,7 @@ if [[ "$IN_REGISTRY" == true ]]; then
   done < <(echo "$CONFIG" | jq -r '.backup_exclude[]? // empty')
 fi
 
-# --- 4. Git context ---
+# --- 4. Contesto git ---
 CONTEXT_FILE="/tmp/finish_context.md"
 BACKUP_PATH=""
 BACKUP_SIZE=""
@@ -227,25 +227,25 @@ TREE_PATH=""
 
 if [[ "$USE_GIT" == true ]] && [[ -d "$PROJECT_PATH/.git" ]]; then
   {
-    echo "# Git Context: $PROJECT_NAME"
-    echo "## Date: $(date '+%Y-%m-%d %H:%M')"
+    echo "# Contesto Git: $PROJECT_NAME"
+    echo "## Data: $(date '+%Y-%m-%d %H:%M')"
     echo ""
-    echo "## Recent commits"
+    echo "## Commit recenti"
     echo '```'
-    git -C "$PROJECT_PATH" log --oneline -15 2>/dev/null || echo "(none)"
+    git -C "$PROJECT_PATH" log --oneline -15 2>/dev/null || echo "(nessuno)"
     echo '```'
     echo ""
     echo "## Diff stat"
     echo '```'
-    git -C "$PROJECT_PATH" diff --stat 2>/dev/null || echo "(no changes)"
+    git -C "$PROJECT_PATH" diff --stat 2>/dev/null || echo "(nessuna modifica)"
     echo '```'
     echo ""
-    echo "## Untracked files"
+    echo "## File untracked"
     echo '```'
-    git -C "$PROJECT_PATH" ls-files --others --exclude-standard 2>/dev/null || echo "(none)"
+    git -C "$PROJECT_PATH" ls-files --others --exclude-standard 2>/dev/null || echo "(nessuno)"
     echo '```'
   } > "$CONTEXT_FILE"
-  echo "Git context saved: $CONTEXT_FILE"
+  echo "Contesto git salvato: $CONTEXT_FILE"
 else
   rm -f "$CONTEXT_FILE"
 fi
@@ -274,19 +274,19 @@ if [[ "$USE_BACKUP" == true ]] || [[ "$ONLY_BACKUP" == true ]]; then
   BASE_NAME="$(basename "$PROJECT_PATH")"
   tar -czf "$BACKUP_PATH" "${EXCLUDE_ARGS[@]}" -C "$PARENT_DIR" "$BASE_NAME"
   BACKUP_SIZE=$(du -h "$BACKUP_PATH" | cut -f1)
-  echo "Backup created: $BACKUP_PATH ($BACKUP_SIZE)"
+  echo "Backup creato: $BACKUP_PATH ($BACKUP_SIZE)"
 
-  # Rotation: keep last 3
+  # Rotazione: ultime 3 copie
   find "$TARGET_DIR" -maxdepth 1 -name "backup_${PROJECT_NAME}_*.tar.gz" -type f \
     | sort -r \
     | tail -n +4 \
     | while read -r old; do
         rm -f "$old"
-        echo "Removed old backup: $(basename "$old")"
+        echo "Rimosso backup vecchio: $(basename "$old")"
       done
 fi
 
-# --- 5b. Git bundle (weekly) ---
+# --- 5b. Git bundle (settimanale) ---
 BUNDLE_PATH=""
 BUNDLE_SIZE=""
 
@@ -305,7 +305,7 @@ if [[ "$USE_GIT" == true ]] && [[ -d "$PROJECT_PATH/.git" ]]; then
   done < <(find "$TARGET_DIR" -maxdepth 1 -name "bundle_${PROJECT_NAME}_*.bundle" -type f | sort -r)
 
   if [[ -n "$RECENT_BUNDLE" ]]; then
-    echo "Git bundle: skip (recent bundle exists)"
+    echo "Git bundle: (skip — bundle recente esistente)"
   else
     TIMESTAMP="${TIMESTAMP:-$(date +%Y%m%d_%H%M%S)}"
     BUNDLE_FILE="bundle_${PROJECT_NAME}_${TIMESTAMP}.bundle"
@@ -314,13 +314,13 @@ if [[ "$USE_GIT" == true ]] && [[ -d "$PROJECT_PATH/.git" ]]; then
     BUNDLE_SIZE=$(du -h "$BUNDLE_PATH" | cut -f1)
     echo "Git bundle: $BUNDLE_PATH ($BUNDLE_SIZE)"
 
-    # Rotation: keep last 2
+    # Rotazione: ultime 2 copie
     find "$TARGET_DIR" -maxdepth 1 -name "bundle_${PROJECT_NAME}_*.bundle" -type f \
       | sort -r \
       | tail -n +3 \
       | while read -r old; do
           rm -f "$old"
-          echo "Removed old bundle: $(basename "$old")"
+          echo "Rimosso bundle vecchio: $(basename "$old")"
         done
   fi
 fi
@@ -335,10 +335,10 @@ if [[ -n "$DOCS_DIR" ]] && [[ "$ONLY_BACKUP" != true ]]; then
   [[ -n "$TREE_EXCLUDE" ]] && TREE_ARGS+=(-I "$TREE_EXCLUDE")
 
   tree "${TREE_ARGS[@]}" "$PROJECT_PATH" > "$TREE_PATH"
-  echo "Tree saved: $TREE_PATH"
+  echo "Tree salvato: $TREE_PATH"
 fi
 
-# --- 7. Stage safe code files ---
+# --- 7. Stage codice sicuro ---
 CODE_STAGED=0
 STAGED_COUNT=0
 if [[ "$USE_GIT" == true ]] && [[ -d "$PROJECT_PATH/.git" ]]; then
@@ -360,13 +360,13 @@ if [[ "$USE_GIT" == true ]] && [[ -d "$PROJECT_PATH/.git" ]]; then
 
   if [[ "$CODE_STAGED" -eq 1 ]]; then
     STAGED_COUNT=$(git diff --cached --numstat | wc -l | tr -d ' ')
-    echo "Code staged: $STAGED_COUNT file(s)"
+    echo "Codice staged: $STAGED_COUNT file"
   else
-    echo "Code staged: no changes"
+    echo "Codice staged: nessuna modifica"
   fi
 fi
 
-# --- 8. Export state for AI phase ---
+# --- 8. Esporta stato per fase AI ---
 STATE_FILE="/tmp/finish_state.json"
 cat > "$STATE_FILE" <<EOFSTATE
 {
@@ -387,20 +387,20 @@ cat > "$STATE_FILE" <<EOFSTATE
 }
 EOFSTATE
 
-# --- 9. Summary ---
+# --- 9. Riepilogo ---
 echo ""
-echo "=== FINISH (mechanical) ==="
-echo "Project:   $PROJECT_NAME"
+echo "=== FINISH (meccanico) ==="
+echo "Progetto:  $PROJECT_NAME"
 echo "Path:      $PROJECT_PATH"
 [[ -n "$BACKUP_PATH" ]] && echo "Backup:    $BACKUP_PATH ($BACKUP_SIZE)" || echo "Backup:    (skip)"
 [[ -n "$BUNDLE_PATH" ]] && echo "Bundle:    $BUNDLE_PATH ($BUNDLE_SIZE)" || echo "Bundle:    (skip)"
 [[ -n "$TREE_PATH" ]] && echo "Tree:      $TREE_PATH" || echo "Tree:      (skip)"
 [[ -f "$CONTEXT_FILE" ]] && echo "Context:   $CONTEXT_FILE" || echo "Context:   (skip)"
-[[ "$CODE_STAGED" -eq 1 ]] && echo "Staged:    $STAGED_COUNT file(s)" || echo "Staged:    none"
+[[ "$CODE_STAGED" -eq 1 ]] && echo "Staged:    $STAGED_COUNT file" || echo "Staged:    nessuno"
 echo "==========================="
 ```
 
-Make it executable:
+Rendilo eseguibile:
 
 ```bash
 chmod +x <WORKSPACE>/.claude/finish.sh
@@ -408,79 +408,79 @@ chmod +x <WORKSPACE>/.claude/finish.sh
 
 ---
 
-## Step 4 — Create `finish.md`
+## Passo 4 — Crea `finish.md`
 
 **File:** `~/.claude/commands/finish.md`
 
-Update the bash command path to point to YOUR `finish.sh`.
+Aggiorna il path del comando bash per puntare al TUO `finish.sh`.
 
 ````markdown
-Execute the end-of-session protocol.
+Esegui il protocollo di fine sessione.
 
-## PHASE 1 — Mechanical (bash)
+## FASE 1 — Meccanica (bash)
 
 ```bash
 echo y | bash <WORKSPACE>/.claude/finish.sh
 ```
 
-This runs: project detection, backup, tree, git context, git bundle, safe code staging.
-Read `/tmp/finish_state.json` for state and `/tmp/finish_context.md` for git context.
+Questo fa: detect progetto, backup, tree, git context, git bundle, stage codice sicuro.
+Leggi `/tmp/finish_state.json` per lo stato e `/tmp/finish_context.md` per il git context.
 
 ---
 
-## PHASE 2 — Update docs + memory (4 Haiku agents in parallel)
+## FASE 2 — Aggiorna doc + memory (4 agenti Haiku in parallelo)
 
-**Skip if** `docs_dir` is empty in state.
+**Salta se** `docs_dir` e' vuoto nello state.
 
-Launch 4 agents in parallel with `model: "haiku"`. Pass to each:
-- Contents of `/tmp/finish_context.md` (git log + diff stat)
-- `project_path` and `docs_dir` from state
-- A summary of what was done in the session (infer from conversation)
+Lancia 4 agenti in parallelo con `model: "haiku"`. Passa a ciascuno:
+- Il contenuto di `/tmp/finish_context.md` (git log + diff stat)
+- Il `project_path` e `docs_dir` dallo state
+- Un riassunto di cosa e' stato fatto nella sessione (deduci dalla conversazione)
 
 ### Agent-STATUS
-Update `<project_path>/<docs_dir>/<status_file>`:
-- If missing, create with: title, current status (date, last commit), session history
-- If exists, update date/commit in "Current Status", add entry in "Session History"
-- Include "Blockers:" line if there were obstacles
-- NEVER remove existing content
+Aggiorna `<project_path>/<docs_dir>/<status_file>`:
+- Se non esiste, crealo con: titolo, stato attuale (data, ultimo commit), cronologia sessioni
+- Se esiste, aggiorna data/commit in "Stato Attuale", aggiungi entry in "Cronologia Sessioni"
+- Includi riga "Blockers:" se ci sono stati ostacoli
+- NON rimuovere nulla di esistente
 
 ### Agent-TODO
-Update `<project_path>/<docs_dir>/<todo_file>`:
-- If missing, create with sections TODO / IN PROGRESS / COMPLETED
-- If exists, move completed tasks to COMPLETED with date, add new tasks to TODO
-- NEVER remove existing content
+Aggiorna `<project_path>/<docs_dir>/<todo_file>`:
+- Se non esiste, crealo con sezioni DA FARE / IN CORSO / COMPLETATI
+- Se esiste, sposta task completati sotto COMPLETATI con data, aggiungi nuovi task sotto DA FARE
+- NON rimuovere nulla di esistente
 
 ### Agent-CLAUDE
-Update `<project_path>/CLAUDE.md`:
-- If exists, update relevant sections (status, last commit, changes). DON'T restructure
-- If missing, create with minimal structure
+Aggiorna `<project_path>/CLAUDE.md`:
+- Se esiste, aggiorna sezioni rilevanti (stato, ultimo commit, modifiche). NON stravolgere la struttura
+- Se non esiste, crealo con struttura minima
 
 ### Agent-MEMORY
-Save memory to `~/.claude/projects/<project-key>/memory/` (project-key = cwd with `/` → `-`):
-- Save external content received (videos, docs, screenshots) → detailed CONTENT summary
-- Save architectural decisions, user feedback, project state changes
-- DON'T save: things in code, git history, content already in CLAUDE.md
-- Create/update `MEMORY.md` as index
+Salva memory in `~/.claude/projects/<project-key>/memory/` (project-key = cwd con `/` → `-`):
+- Salva contenuti esterni ricevuti (video, doc, screenshot) → riassunto dettagliato del CONTENUTO
+- Salva decisioni architetturali, feedback utente, stato progetto se cambiato
+- NON salvare: cose nel codice, git history, contenuti gia' in CLAUDE.md
+- Crea/aggiorna `MEMORY.md` come indice
 
 ---
 
-## PHASE 3 — Code commit (Sonnet)
+## FASE 3 — Commit codice (Sonnet)
 
-**Skip if** `use_git` is false in state, or `code_staged` is 0.
+**Salta se** `use_git` e' false nello state, o `code_staged` e' 0.
 
-Code is already staged by finish.sh. Just:
-1. Analyze `git diff --cached --stat` to understand what changed
-2. Generate an appropriate commit message (conventional commits: `feat:`, `fix:`, `refactor:`, `chore:`)
-3. Commit:
+Il codice e' gia' staged da finish.sh. Devi solo:
+1. Analizza `git diff --cached --stat` per capire cosa e' stato modificato
+2. Genera un commit message appropriato (conventional commits: `feat:`, `fix:`, `refactor:`, `chore:`)
+3. Committa:
    ```bash
-   git commit -m "<message>"
+   git commit -m "<messaggio>"
    ```
 
 ---
 
-## PHASE 4 — Doc commit + push + summary (bash)
+## FASE 4 — Commit doc + push + riepilogo (bash)
 
-**Skip if** `use_git` is false in state.
+**Salta se** `use_git` e' false nello state.
 
 ```bash
 cd <project_path>
@@ -489,49 +489,49 @@ git add "<docs_dir>/<status_file>" "<docs_dir>/<todo_file>" "<docs_dir>/tree.txt
 git diff --cached --quiet || git commit -m "docs: update project docs via /finish"
 ```
 
-Ask: **"Push to remote? [y/N]"**
-- If yes: `git push`
-- If no: note that commits are local only
+Chiedi: **"Vuoi pushare? [y/N]"**
+- Se si': `git push`
+- Se no: segnala che i commit sono solo locali
 
-Print summary:
+Stampa riepilogo:
 ```
-=== SESSION END <name> ===
-Project:       <name>
-Date:          YYYY-MM-DD HH:MM
-Backup:        <path> (<size>)
-Tree:          <path>
-Status:        updated / created / skipped
-TODO:          updated / created / skipped
-CLAUDE.md:     updated / skipped
-Memory:        <N> files saved
-Code commit:   <hash> <message> / none
-Docs commit:   <hash> / none
-Pushed:        yes / no
-Warning:       <any notes>
+=== FINE SESSIONE <nome> ===
+Progetto:       <nome>
+Data:           YYYY-MM-DD HH:MM
+Backup:         <path> (<size>)
+Tree:           <path>
+Status:         aggiornato / creato / saltato
+TODO:           aggiornato / creato / saltato
+CLAUDE.md:      aggiornato / saltato
+Memory:         <N> file salvati
+Code commit:    <hash> <message> / nessuno
+Docs commit:    <hash> / nessuno
+Pushed:         si' / no
+Warning:        <eventuali note>
 ===================================
 ```
 
 ---
 
-## RULES
+## REGOLE
 
-- Only touch files in the detected project. Never touch other projects.
-- Config from projects.json — no hardcoded paths.
-- Read before modifying.
-- Minimum viable changes only.
-- Doc agents: use `model: "haiku"` to save tokens.
-- NEVER `git add -A`. NEVER commit `.env`, `.p8`, `credentials`, `secrets/`.
+- Tocca SOLO file del progetto rilevato. Mai file di altri progetti.
+- Config da projects.json — nessun hardcoded.
+- Leggi prima di modificare.
+- Minimo indispensabile.
+- Agenti doc: usa `model: "haiku"` per risparmiare token.
+- MAI `git add -A`. MAI committare `.env`, `.p8`, `credentials`, `secrets/`.
 ````
 
 ---
 
-## Step 5 — Create the safety hook
+## Passo 5 — Crea il safety hook
 
 **File:** `~/.claude/hooks/session-end-safety.sh`
 
 ```bash
 #!/bin/bash
-# Warns on uncommitted work at session start
+# Avvisa su lavoro uncommitted all'avvio sessione
 set -e
 
 PWD_REAL="$(pwd -P)"
@@ -566,10 +566,10 @@ if git -C "$PWD_REAL" diff --quiet && git -C "$PWD_REAL" diff --cached --quiet &
 fi
 
 CHANGED=$(git -C "$PWD_REAL" status --porcelain | wc -l | tr -d ' ')
-echo "[session-end] WARNING: $CHANGED uncommitted file(s) in $(basename "$PWD_REAL"). Run /finish next session." >&2
+echo "[session-end] WARNING: $CHANGED file uncommitted in $(basename "$PWD_REAL"). Esegui /finish alla prossima sessione." >&2
 ```
 
-Make it executable:
+Rendilo eseguibile:
 
 ```bash
 chmod +x ~/.claude/hooks/session-end-safety.sh
@@ -577,9 +577,9 @@ chmod +x ~/.claude/hooks/session-end-safety.sh
 
 ---
 
-## Step 6 — Update `settings.json`
+## Passo 6 — Aggiorna `settings.json`
 
-Add the SessionStart hook to `~/.claude/settings.json`:
+Aggiungi l'hook SessionStart a `~/.claude/settings.json`:
 
 ```json
 {
@@ -599,45 +599,42 @@ Add the SessionStart hook to `~/.claude/settings.json`:
 }
 ```
 
-If you already have other hooks in SessionStart, add this as an additional entry.
+Se hai gia' altri hook in SessionStart, aggiungi questo come entry aggiuntiva.
 
 ---
 
-## Step 7 — Paths to customize
+## Passo 7 — Path da personalizzare
 
-All hardcoded paths are in the first lines of each file:
+Tutti i path hardcoded sono nelle prime righe di ogni file:
 
-| File | Variable | Default | Change to |
+| File | Variabile | Default | Cambia in |
 |---|---|---|---|
-| `finish.sh` | `HUB_DEV` | `$HOME/Hub/dev` | Your workspace root |
-| `finish.sh` | `PROJECTS_JSON` | `$HUB_DEV/.claude/projects.json` | Path to your registry |
-| `finish.sh` | `BACKUPS_DIR` | `$HUB_DEV/backups` | Where to save backups |
-| `finish.md` | bash line | `<WORKSPACE>/.claude/finish.sh` | Path to your finish.sh |
-| `session-end-safety.sh` | `PROJECTS_JSON` | `$HOME/<WORKSPACE>/.claude/projects.json` | Path to your registry |
+| `finish.sh` | `HUB_DEV` | `$HOME/Hub/dev` | La root del tuo workspace |
+| `finish.sh` | `PROJECTS_JSON` | `$HUB_DEV/.claude/projects.json` | Path al tuo registry |
+| `finish.sh` | `BACKUPS_DIR` | `$HUB_DEV/backups` | Dove salvare i backup |
+| `finish.md` | riga bash | `<WORKSPACE>/.claude/finish.sh` | Path al tuo finish.sh |
+| `session-end-safety.sh` | `PROJECTS_JSON` | `$HOME/<WORKSPACE>/.claude/projects.json` | Path al tuo registry |
 
 ---
 
-## Verify installation
+## Verifica installazione
 
-1. `cd` into a registered project
-2. Test finish.sh manually:
+1. `cd` in un progetto registrato
+2. Testa finish.sh manualmente:
    ```bash
    echo y | bash <WORKSPACE>/.claude/finish.sh
    ```
-   Should print: backup path, tree path, context file, staged count
-3. In Claude Code, type `/finish` — should execute the full protocol
+   Deve stampare: path backup, path tree, file context, conteggio staged
+3. In Claude Code, digita `/finish` — deve eseguire l'intero protocollo
 
 ---
 
-## Available commands after installation
+## Comandi disponibili dopo l'installazione
 
-| Command | What it does |
+| Comando | Cosa fa |
 |---|---|
-| `/finish` | End session: backup + docs + memory + commit + push |
+| `/finish` | Fine sessione: backup + doc + memory + commit + push |
 
 ---
 
-- `SETUP.md` — English
-- `SETUP.it.md` — Italiano
-
-Author: M87
+Autore: M87

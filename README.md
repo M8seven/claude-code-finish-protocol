@@ -201,4 +201,7 @@ MIT
 
 ---
 
+- `README.md` — English
+- `README.it.md` — Italiano
+
 Author: M87
