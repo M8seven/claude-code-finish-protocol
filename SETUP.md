@@ -1,6 +1,19 @@
 # /finish Setup Guide
 
+> **Quick start:** Give this file to Claude Code and say: *"Set up /finish on my machine."*
+> Claude will ask you where your projects live (e.g., `~/code`, `~/projects`) and create everything automatically.
+>
+> **Warning:** All config files contain absolute paths to your workspace. If you move the workspace folder later, you'll need to update the paths in `finish.sh`, `finish.md`, and `session-end-safety.sh` — or the system will break.
+
 Everything you need to install the `/finish` protocol on a new machine with Claude Code.
+
+## Compatibility
+
+| OS | Status | Notes |
+|---|---|---|
+| **macOS** | Fully supported | Primary development platform |
+| **Linux** | Fully supported | `finish.sh` has Linux fallbacks for `date` and `stat` |
+| **Windows** | WSL only | Requires Windows Subsystem for Linux. Native PowerShell/CMD not supported |
 
 ## Prerequisites
 
