@@ -1,5 +1,7 @@
 # The /finish Protocol
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19061530.svg)](https://doi.org/10.5281/zenodo.19061530)
+
 **Session lifecycle management for AI coding assistants.**
 
 AI coding sessions are stateless: context evaporates, code stays uncommitted, documentation drifts from reality. The `/finish` protocol is a two-phase end-of-session system that handles backup, git operations, documentation updates, and cross-session memory in a single command.
