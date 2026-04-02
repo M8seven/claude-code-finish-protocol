@@ -139,6 +139,52 @@ L'hook `session-end-safety.sh` si esegue ad ogni avvio di sessione Claude Code (
 
 Questo e' intenzionalmente un warning, non un auto-commit. Auto-committare alla fine della sessione e' pericoloso — il codice potrebbe essere in uno stato rotto, i test potrebbero non passare, e lo sviluppatore potrebbe non volere quelle modifiche committate. La rete di sicurezza ti assicura solo di saperlo.
 
+## Session Log
+
+Il protocollo include un session log automatico che cattura le lezioni operative tra sessioni — gli errori incontrati, i fix trovati, i comandi che hanno funzionato dopo quelli falliti.
+
+### Come funziona
+
+Un hook `PostToolUse` (`session-log.sh`) si esegue dopo ogni chiamata `Bash`, `Edit` e `Write`. Appende una riga JSONL a `/tmp/session-log-{SESSION_ID}.jsonl` con:
+
+- Timestamp (unix)
+- Nome del tool
+- Input (comando o path del file)
+- Output (primi 500 caratteri, UTF-8 safe)
+- Exit code (per Bash)
+
+I segreti vengono automaticamente redatti prima della scrittura (chiavi API, JWT, credenziali AWS, token hex). L'hook gira in <50ms e non blocca mai l'esecuzione del tool (esce sempre 0).
+
+### Estrazione lezioni
+
+Al momento del `/finish`, `extract-lessons.sh` filtra il session log cercando:
+
+- Comandi falliti (exit code diverso da 0)
+- Pattern di errore nell'output (error, fail, not found, permission denied, traceback, exception — case-insensitive)
+- Retry riusciti entro una finestra di 10 entry dopo ogni fallimento
+
+L'output filtrato viene passato all'Agent-MEMORY con categorie esplicite:
+
+1. **Errori risolti** — errore, causa root, fix
+2. **Path e workaround** — percorsi di file/config, workaround per tool/librerie scoperti
+3. **Comandi utili** — comandi CLI che risolvono problemi ricorrenti
+4. **Decisioni architetturali** — scelte di design con motivazione
+5. **Feedback utente** — correzioni e preferenze
+
+### Recovery orfani
+
+Se una sessione termina senza `/finish`, l'hook di avvio della sessione successiva rileva i log orfani (piu' vecchi di 2 ore, verificati non ancora aperti via `lsof`), estrae le lezioni e le presenta come contesto. I log processati vengono spostati in `/tmp/session-log-processed/`.
+
+```
+Hook PostToolUse                    /finish
+     |                                  |
+     v                                  v
+session-log.sh --> JSONL --> extract-lessons.sh --> Agent-MEMORY
+                    |
+                    v (se orfano)
+              session-start-tasks.sh --> recovery
+```
+
 ## Confronto
 
 | Funzionalita' | /finish | claude-sessions | Aider --commit | Cursor | Memory banks |

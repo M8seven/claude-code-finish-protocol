@@ -80,6 +80,8 @@ The key insight: everything that does not require AI judgment runs in bash. Proj
 | `finish.md` | `~/.claude/commands/finish.md` | Phase 2: AI orchestration (4 agents + commit + push) |
 | `projects.json` | `<workspace>/.claude/projects.json` | Project registry (per-project config) |
 | `session-end-safety.sh` | `~/.claude/hooks/session-end-safety.sh` | Safety net: warns on uncommitted work at session start |
+| `session-log.sh` | `~/.claude/hooks/session-log.sh` | PostToolUse hook: logs tool calls to JSONL |
+| `extract-lessons.sh` | `~/.claude/hooks/extract-lessons.sh` | Filters session log for errors and fixes |
 
 ## The Flow
 
@@ -140,6 +142,52 @@ The `session-end-safety.sh` hook runs on every Claude Code session start (config
 4. If any uncommitted changes exist, prints a warning: `[session-end] WARNING: N uncommitted file(s) in project. Run /finish next session.`
 
 This is intentionally a warning, not an auto-commit. Auto-committing on session end is dangerous — the code may be in a broken state, tests may not pass, and the developer may not want those changes committed. The safety net just ensures you know about it.
+
+## Session Log
+
+The protocol includes an automatic session log that captures operational lessons across sessions — the errors you hit, the fixes you found, the commands that worked after the ones that didn't.
+
+### How it works
+
+A `PostToolUse` hook (`session-log.sh`) runs after every `Bash`, `Edit`, and `Write` tool call. It appends a single JSONL line to `/tmp/session-log-{SESSION_ID}.jsonl` with:
+
+- Timestamp (unix)
+- Tool name
+- Input (command or file path)
+- Output (first 500 characters, UTF-8 safe)
+- Exit code (for Bash)
+
+Secrets are automatically redacted before writing (API keys, JWTs, AWS credentials, hex tokens). The hook runs in <50ms and never blocks tool execution (always exits 0).
+
+### Lesson extraction
+
+At `/finish` time, `extract-lessons.sh` filters the session log for:
+
+- Failed commands (exit code ≠ 0)
+- Error patterns in output (error, fail, not found, permission denied, traceback, exception — case-insensitive)
+- Successful retries within a 10-entry window after each failure
+
+The filtered output is passed to Agent-MEMORY with explicit categories:
+
+1. **Errors resolved** — error, root cause, fix
+2. **Paths and workarounds** — file paths, config locations, tool workarounds discovered
+3. **Useful commands** — CLI commands that solve recurring problems
+4. **Architectural decisions** — design choices with rationale
+5. **User feedback** — corrections and preferences
+
+### Orphan recovery
+
+If a session ends without `/finish`, the next session's startup hook detects orphan logs (older than 2 hours, verified not still open via `lsof`), extracts lessons, and presents them as context. Processed logs are moved to `/tmp/session-log-processed/`.
+
+```
+PostToolUse hook                    /finish
+     │                                  │
+     ▼                                  ▼
+session-log.sh ──→ JSONL ──→ extract-lessons.sh ──→ Agent-MEMORY
+                    │
+                    ▼ (if orphaned)
+              session-start-tasks.sh ──→ recovery
+```
 
 ## Comparison
 
