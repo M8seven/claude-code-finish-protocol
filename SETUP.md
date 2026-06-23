@@ -196,6 +196,16 @@ fi
 # --- 2. Confirmation ---
 echo "Project detected: $PROJECT_NAME ($PROJECT_PATH)"
 
+# Guard: refuse to back up the workspace root or backups dir as a single tarball
+# (running /finish from there would create a huge, corruption-prone monolithic archive).
+case "$PROJECT_PATH" in
+  "$HUB_DEV"|"$(dirname "$HUB_DEV")"|"$BACKUPS_DIR")
+    echo "Refusing: '$PROJECT_PATH' is too large for a single tarball." >&2
+    echo "Run /finish from a specific project subfolder instead." >&2
+    exit 1
+    ;;
+esac
+
 if [[ "$IN_REGISTRY" == false ]]; then
   read -rp "Not in registry. Backup only? [y/N] " ans
   case "$ans" in

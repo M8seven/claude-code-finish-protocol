@@ -196,6 +196,16 @@ fi
 # --- 2. Conferma ---
 echo "Progetto rilevato: $PROJECT_NAME ($PROJECT_PATH)"
 
+# Guard: rifiuta il backup della root del workspace o della cartella backups in un singolo tarball
+# (lanciare /finish da lì creerebbe un archivio monolitico enorme e soggetto a corruzione).
+case "$PROJECT_PATH" in
+  "$HUB_DEV"|"$(dirname "$HUB_DEV")"|"$BACKUPS_DIR")
+    echo "Rifiuto: '$PROJECT_PATH' e' troppo grande per un singolo tarball." >&2
+    echo "Lancia /finish da una sotto-cartella di progetto specifica." >&2
+    exit 1
+    ;;
+esac
+
 if [[ "$IN_REGISTRY" == false ]]; then
   read -rp "Non in registry. Solo backup? [y/N] " ans
   case "$ans" in
