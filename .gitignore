@@ -1,4 +1,5 @@
 
 .claude/workflow-state.json
 .claude/state-backup/
-.claude/workflow.log.claude/
+.claude/workflow.log
+.claude/
