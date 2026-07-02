@@ -37,14 +37,14 @@ L'utente digita: /finish
 |  3. Cattura contesto git   |
 |  4. Backup (tar.gz)        |
 |  5. Git bundle (settimanale)|
-|  6. Albero directory       |
-|  7. Stage codice sicuro    |
+|  6. Stage codice sicuro    |
+|  7. Albero directory       |
 |  8. Esporta stato JSON     |
 +-------------+--------------+
               |
               v
-      /tmp/finish_state.json
-      /tmp/finish_context.md
+      /tmp/finish_state_<progetto>.json
+      /tmp/finish_context_<progetto>.md
               |
               v
 +---------------------------+
@@ -87,17 +87,17 @@ L'intuizione chiave: tutto cio' che non richiede giudizio AI gira in bash. Rilev
 
 **Step 2: Caricamento config.** Se trovato nel registry, carica le impostazioni per-progetto: git abilitato, backup abilitato, directory docs, esclusioni tree, path dei file status/TODO, esclusioni backup.
 
-**Step 3: Cattura contesto git.** Per i progetti con git abilitato, scrive `/tmp/finish_context.md` con gli ultimi 15 commit, diff stat e file untracked. Questo file diventa l'input primario degli agenti AI.
+**Step 3: Cattura contesto git.** Per i progetti con git abilitato, scrive `/tmp/finish_context_<progetto>.md` con gli ultimi 15 commit, diff stat e file untracked. Questo file diventa l'input primario degli agenti AI.
 
-**Step 4: Backup.** Crea un `tar.gz` con timestamp in una directory backup centralizzata, escludendo `.git`, `node_modules`, `.venv` ed esclusioni specifiche del progetto. Rotazione: ultime 3 copie.
+**Step 4: Backup.** Crea un `tar.gz` con timestamp in una directory backup centralizzata (scrittura atomica via file `.tmp` + `mv`, cosi' un crash a meta' tar non lascia un archivio troncato che la rotazione promuoverebbe a unico backup), escludendo `.git`, `node_modules`, `.venv` ed esclusioni specifiche del progetto. La rotazione tiene solo l'ultimo backup.
 
-**Step 5: Git bundle.** Una volta a settimana, crea un bundle git completo (tutti i branch, storia completa). Rotazione: ultime 2 copie. Salta se esiste un bundle di meno di 7 giorni.
+**Step 5: Git bundle.** Una volta a settimana, crea un bundle git completo (tutti i branch, storia completa), scritto anch'esso in modo atomico. La rotazione tiene solo l'ultimo bundle. Salta se esiste un bundle di meno di 7 giorni.
 
-**Step 6: Albero directory.** Genera uno snapshot tree profondita'-3 nella directory docs del progetto, escludendo le directory di rumore.
+**Step 6: Staging codice sicuro.** Esegue `git add -u` per i file tracciati, poi effettua lo stage dei file untracked uno per uno (via `-z`/`read -d ''`, cosi' i filename non-ASCII sopravvivono intatti), saltando `.env`, `.p8`, `.pem`, `credentials`, `secrets/`, binari e archivi (`.tar.gz`, `.zip`, `.dmg`, `.log`, ...), file oltre i 5MB e qualsiasi file il cui contenuto matcha un pattern di secret (chiavi AWS, header di private key, token `sk-`/`ghp_`/`xox*`/`AIza`). Non usa mai `git add -A`.
 
-**Step 7: Staging codice sicuro.** Esegue `git add -u` per i file tracciati, poi effettua lo stage dei file untracked uno per uno, saltando `.env`, `.p8`, `.pem`, `credentials` e `secrets/`. Non usa mai `git add -A`.
+**Step 7: Albero directory.** Genera uno snapshot tree profondita'-3 nella directory docs del progetto, escludendo le directory di rumore. Gira *dopo* lo staging apposta: `tree.txt` resta volutamente non staged a questo punto, cosi' finisce nel commit docs (Fase 4) invece che nel commit codice (Fase 3).
 
-**Step 8: Export stato.** Scrive `/tmp/finish_state.json` con tutti i path, flag e risultati per la fase AI.
+**Step 8: Export stato.** Scrive `/tmp/finish_state_<progetto>.json` con tutti i path, flag e risultati per la fase AI, inclusi `status_path`/`todo_path` gia' pre-risolti — la fase AI li legge direttamente invece di ricostruire `<docs_dir>/<status_file>` a mano, dato che il registry a volte tiene i file doc in posizioni diverse.
 
 ### Fase 2 — Intelligente (agenti AI, ~15–20 secondi)
 
@@ -191,7 +191,7 @@ session-log.sh --> JSONL --> extract-lessons.sh --> Agent-MEMORY
 |---|---|---|---|---|---|
 | Documentazione sessione | 4 file | Journal | No | No | No |
 | Automazione commit git | Staged + msg | No | Per-edit | Solo msg | No |
-| Backup (tar.gz) | Rotazione 3 | No | No | No | No |
+| Backup (tar.gz) | Solo ultimo (atomico) | No | No | No | No |
 | Git bundle | Settimanale | No | No | No | No |
 | Memoria cross-sessione | Per-progetto | No | No | No | Si' |
 | Protezione file sensibili | Filtro staging | N/A | No | No | N/A |

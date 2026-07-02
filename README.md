@@ -39,14 +39,14 @@ User types: /finish
 │  3. Git context capture    │
 │  4. Backup (tar.gz)        │
 │  5. Git bundle (weekly)    │
-│  6. Directory tree         │
-│  7. Stage safe code        │
+│  6. Stage safe code        │
+│  7. Directory tree         │
 │  8. Export state JSON       │
 └────────────┬──────────────┘
              │
              ▼
-     /tmp/finish_state.json
-     /tmp/finish_context.md
+     /tmp/finish_state_<project>.json
+     /tmp/finish_context_<project>.md
              │
              ▼
 ┌───────────────────────────┐
@@ -91,17 +91,17 @@ The key insight: everything that does not require AI judgment runs in bash. Proj
 
 **Step 2: Config loading.** If found in registry, loads per-project settings: git enabled, backup enabled, docs directory, tree excludes, status/TODO file paths, backup excludes.
 
-**Step 3: Git context capture.** For git-enabled projects, writes `/tmp/finish_context.md` with the last 15 commits, diff stat, and untracked files. This file becomes the AI agents' primary input.
+**Step 3: Git context capture.** For git-enabled projects, writes `/tmp/finish_context_<project>.md` with the last 15 commits, diff stat, and untracked files. This file becomes the AI agents' primary input.
 
-**Step 4: Backup.** Creates a timestamped `tar.gz` in a central backups directory, excluding `.git`, `node_modules`, `.venv`, and project-specific excludes. Rotates to keep the last 3 backups.
+**Step 4: Backup.** Creates a timestamped `tar.gz` in a central backups directory (written atomically via a `.tmp` file + `mv`, so a crash mid-tar never leaves a truncated archive that rotation would promote to the only backup), excluding `.git`, `node_modules`, `.venv`, and project-specific excludes. Rotation keeps only the latest backup.
 
-**Step 5: Git bundle.** Once per week, creates a full git bundle (all branches, full history). Rotates to keep the last 2. Skips if a bundle less than 7 days old exists.
+**Step 5: Git bundle.** Once per week, creates a full git bundle (all branches, full history), also written atomically. Rotation keeps only the latest bundle. Skips if a bundle less than 7 days old exists.
 
-**Step 6: Directory tree.** Generates a depth-3 tree snapshot in the project's docs directory, excluding noise directories.
+**Step 6: Safe code staging.** Runs `git add -u` for tracked files, then stages untracked files one-by-one (via `-z`/`read -d ''`, so non-ASCII filenames survive intact), skipping `.env`, `.p8`, `.pem`, `credentials`, `secrets/`, binaries and archives (`.tar.gz`, `.zip`, `.dmg`, `.log`, ...), files over 5MB, and any file whose content matches a secret pattern (AWS keys, private-key headers, `sk-`/`ghp_`/`xox*`/`AIza` tokens). Never uses `git add -A`.
 
-**Step 7: Safe code staging.** Runs `git add -u` for tracked files, then stages untracked files one-by-one, skipping `.env`, `.p8`, `.pem`, `credentials`, and `secrets/`. Never uses `git add -A`.
+**Step 7: Directory tree.** Generates a depth-3 tree snapshot in the project's docs directory, excluding noise directories. Runs *after* staging on purpose: `tree.txt` is deliberately left unstaged at this point so it lands in the docs commit (Phase 4) instead of the code commit (Phase 3).
 
-**Step 8: State export.** Writes `/tmp/finish_state.json` with all paths, flags, and results for the AI phase.
+**Step 8: State export.** Writes `/tmp/finish_state_<project>.json` with all paths, flags, and results for the AI phase, including pre-resolved `status_path`/`todo_path` — the AI phase reads these directly instead of reconstructing `<docs_dir>/<status_file>` by hand, since the registry sometimes nests the doc files differently.
 
 ### Phase 2 — Intelligent (AI agents, ~15–20 seconds)
 
@@ -195,7 +195,7 @@ session-log.sh ──→ JSONL ──→ extract-lessons.sh ──→ Agent-MEMO
 |---|---|---|---|---|---|
 | Session documentation | 4 files | Journal | No | No | No |
 | Git commit automation | Staged + msg | No | Per-edit | Msg only | No |
-| Backup (tar.gz) | 3-rotation | No | No | No | No |
+| Backup (tar.gz) | Latest only (atomic) | No | No | No | No |
 | Git bundle | Weekly | No | No | No | No |
 | Cross-session memory | Per-project | No | No | No | Yes |
 | Sensitive file protection | Staging filter | N/A | No | No | N/A |
